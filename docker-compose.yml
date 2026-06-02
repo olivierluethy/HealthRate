@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: praemien-postgres
+    environment:
+      POSTGRES_DB: praemiendb
+      POSTGRES_USER: praemien
+      POSTGRES_PASSWORD: praemien
+    ports:
+      - "5432:5432"
+    volumes:
+      - praemien-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U praemien -d praemiendb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  praemien-data:

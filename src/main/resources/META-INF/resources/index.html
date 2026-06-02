@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Prämienrechner – Schweizer Krankenkasse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { swiss: '#DC2626' },
+                    fontFamily: { sans: ['system-ui', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-feature-settings: "tnum"; }
+        .tnum { font-variant-numeric: tabular-nums; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+<!-- Header -->
+<header class="bg-white border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-6 py-5 flex items-center gap-3">
+        <div class="w-9 h-9 rounded-md bg-swiss flex items-center justify-center">
+            <span class="text-white text-2xl font-bold leading-none">+</span>
+        </div>
+        <div>
+            <h1 class="text-xl font-semibold tracking-tight">Prämienrechner</h1>
+            <p class="text-sm text-slate-500">Schweizer Krankenkassen-Grundversicherung · Demo</p>
+        </div>
+        <a href="/q/swagger-ui" target="_blank"
+           class="ml-auto text-sm text-slate-500 hover:text-swiss transition-colors">API-Dokumentation →</a>
+    </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-6 py-10 grid lg:grid-cols-2 gap-8">
+
+    <!-- ============ Section 1: Prämienrechner ============ -->
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-7">
+        <h2 class="text-lg font-semibold mb-1">Prämie berechnen</h2>
+        <p class="text-sm text-slate-500 mb-6">Berechnen Sie Ihre monatliche Prämie.</p>
+
+        <form id="calcForm" class="space-y-5">
+            <div>
+                <label class="block text-sm font-medium mb-1.5" for="canton">Kanton</label>
+                <select id="canton" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 bg-white
+                        focus:outline-none focus:ring-2 focus:ring-swiss/40 focus:border-swiss"></select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1.5" for="age">Alter</label>
+                <input id="age" type="number" min="0" max="120" value="32"
+                       class="w-full rounded-lg border border-slate-300 px-3 py-2.5
+                              focus:outline-none focus:ring-2 focus:ring-swiss/40 focus:border-swiss"/>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1.5" for="franchise">Franchise</label>
+                <select id="franchise" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 bg-white
+                        focus:outline-none focus:ring-2 focus:ring-swiss/40 focus:border-swiss">
+                    <option value="300">CHF 300</option>
+                    <option value="500">CHF 500</option>
+                    <option value="1000" selected>CHF 1'000</option>
+                    <option value="1500">CHF 1'500</option>
+                    <option value="2000">CHF 2'000</option>
+                    <option value="2500">CHF 2'500</option>
+                </select>
+            </div>
+
+            <div class="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5">
+                <div>
+                    <span class="text-sm font-medium">Unfalleinschluss</span>
+                    <p class="text-xs text-slate-500">Unfalldeckung einschliessen (+8 %)</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input id="unfall" type="checkbox" class="sr-only peer"/>
+                    <div class="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-swiss
+                                after:content-[''] after:absolute after:top-0.5 after:left-0.5
+                                after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all
+                                peer-checked:after:translate-x-5"></div>
+                </label>
+            </div>
+
+            <button type="submit"
+                    class="w-full bg-swiss hover:bg-red-700 text-white font-medium rounded-lg px-4 py-3
+                           transition-colors">Prämie berechnen</button>
+        </form>
+
+        <!-- Result -->
+        <div id="result" class="hidden mt-7 pt-6 border-t border-slate-200">
+            <div class="flex items-end justify-between mb-5">
+                <div>
+                    <p class="text-sm text-slate-500">Monatliche Prämie</p>
+                    <p class="text-4xl font-bold text-swiss tnum"><span id="monthly"></span>
+                        <span class="text-base font-medium text-slate-400">CHF</span></p>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm text-slate-500">Jährlich</p>
+                    <p class="text-xl font-semibold tnum"><span id="yearly"></span> CHF</p>
+                </div>
+            </div>
+            <table class="w-full text-sm">
+                <tbody class="divide-y divide-slate-100">
+                    <tr><td class="py-2 text-slate-500">Kanton</td><td class="py-2 text-right font-medium" id="rCanton"></td></tr>
+                    <tr><td class="py-2 text-slate-500">Altersgruppe</td><td class="py-2 text-right font-medium" id="rAgeGroup"></td></tr>
+                    <tr><td class="py-2 text-slate-500">Basisprämie (national)</td><td class="py-2 text-right font-medium tnum" id="rBase"></td></tr>
+                    <tr><td class="py-2 text-slate-500">Kantonsfaktor</td><td class="py-2 text-right font-medium tnum" id="rKanton"></td></tr>
+                    <tr><td class="py-2 text-slate-500">Franchise-Rabatt</td><td class="py-2 text-right font-medium tnum" id="rFranchise"></td></tr>
+                    <tr><td class="py-2 text-slate-500">Unfallzuschlag</td><td class="py-2 text-right font-medium tnum" id="rUnfall"></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ============ Section 2: Franchise Vergleich ============ -->
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-7">
+        <h2 class="text-lg font-semibold mb-1">Franchise-Vergleich</h2>
+        <p class="text-sm text-slate-500 mb-6">Vergleichen Sie alle sechs Franchisen.</p>
+
+        <form id="compareForm" class="space-y-5">
+            <div>
+                <label class="block text-sm font-medium mb-1.5" for="cCanton">Kanton</label>
+                <select id="cCanton" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 bg-white
+                        focus:outline-none focus:ring-2 focus:ring-swiss/40 focus:border-swiss"></select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1.5" for="cAge">Alter</label>
+                <input id="cAge" type="number" min="0" max="120" value="32"
+                       class="w-full rounded-lg border border-slate-300 px-3 py-2.5
+                              focus:outline-none focus:ring-2 focus:ring-swiss/40 focus:border-swiss"/>
+            </div>
+            <div class="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5">
+                <div>
+                    <span class="text-sm font-medium">Unfalleinschluss</span>
+                    <p class="text-xs text-slate-500">Unfalldeckung einschliessen (+8 %)</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input id="cUnfall" type="checkbox" class="sr-only peer"/>
+                    <div class="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-swiss
+                                after:content-[''] after:absolute after:top-0.5 after:left-0.5
+                                after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all
+                                peer-checked:after:translate-x-5"></div>
+                </label>
+            </div>
+            <button type="submit"
+                    class="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium rounded-lg px-4 py-3
+                           transition-colors">Alle Franchisen vergleichen</button>
+        </form>
+
+        <div id="compareResult" class="hidden mt-7 pt-6 border-t border-slate-200 overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 border-b border-slate-200">
+                        <th class="py-2 font-medium">Franchise</th>
+                        <th class="py-2 font-medium text-right">Monatlich</th>
+                        <th class="py-2 font-medium text-right">Jährlich</th>
+                        <th class="py-2 font-medium text-right">Ersparnis*</th>
+                    </tr>
+                </thead>
+                <tbody id="compareBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+            <p class="text-xs text-slate-400 mt-3">* Ersparnis pro Jahr gegenüber der Basis-Franchise (CHF 300).</p>
+        </div>
+    </section>
+</main>
+
+<footer class="max-w-6xl mx-auto px-6 py-8 text-center text-xs text-slate-400">
+    Demo-Applikation · Werte sind illustrativ und stellen keine verbindliche Offerte dar.
+</footer>
+
+<script>
+    const API = window.location.origin + '/api';
+    const fmt = new Intl.NumberFormat('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // --- Load cantons into both dropdowns ---
+    async function loadCantons() {
+        const res = await fetch(API + '/cantons');
+        const cantons = await res.json();
+        const options = cantons.map(c => `<option value="${c.code}">${c.name} (${c.code})</option>`).join('');
+        const sel = document.getElementById('canton');
+        const cSel = document.getElementById('cCanton');
+        sel.innerHTML = options;
+        cSel.innerHTML = options;
+        // Default to Luzern if present.
+        sel.value = 'LU'; cSel.value = 'LU';
+    }
+
+    // --- Calculator ---
+    document.getElementById('calcForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const body = {
+            canton: document.getElementById('canton').value,
+            age: parseInt(document.getElementById('age').value, 10),
+            franchise: parseInt(document.getElementById('franchise').value, 10),
+            unfalleinschluss: document.getElementById('unfall').checked
+        };
+        const res = await fetch(API + '/premium/calculate', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+        });
+        if (!res.ok) { const err = await res.json(); alert('Fehler: ' + (err.error || res.status)); return; }
+        const d = await res.json();
+        document.getElementById('monthly').textContent = fmt.format(d.monthlyPremium);
+        document.getElementById('yearly').textContent = fmt.format(d.yearlyPremium);
+        document.getElementById('rCanton').textContent = d.canton;
+        document.getElementById('rAgeGroup').textContent = d.ageGroup;
+        document.getElementById('rBase').textContent = fmt.format(d.breakdown.basePremium) + ' CHF';
+        document.getElementById('rKanton').textContent = '× ' + d.breakdown.kantonFactor;
+        document.getElementById('rFranchise').textContent = d.breakdown.franchiseDiscount + ' %';
+        document.getElementById('rUnfall').textContent = '+' + d.breakdown.unfallSurcharge + ' %';
+        document.getElementById('result').classList.remove('hidden');
+    });
+
+    // --- Comparison ---
+    document.getElementById('compareForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const body = {
+            canton: document.getElementById('cCanton').value,
+            age: parseInt(document.getElementById('cAge').value, 10),
+            unfalleinschluss: document.getElementById('cUnfall').checked
+        };
+        const res = await fetch(API + '/premium/compare', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+        });
+        if (!res.ok) { const err = await res.json(); alert('Fehler: ' + (err.error || res.status)); return; }
+        const list = await res.json();
+        // Base = franchise 300 yearly premium, used to compute savings.
+        const base = list.find(r => r.franchise === 300);
+        const baseYearly = base ? base.yearlyPremium : Math.max(...list.map(r => r.yearlyPremium));
+        const rows = list.map(r => {
+            const saving = baseYearly - r.yearlyPremium;
+            const savingTxt = saving > 0
+                ? `<span class="text-green-600">− ${fmt.format(saving)}</span>`
+                : '<span class="text-slate-400">—</span>';
+            return `<tr>
+                <td class="py-2.5 font-medium">CHF ${r.franchise.toLocaleString('de-CH')}</td>
+                <td class="py-2.5 text-right tnum">${fmt.format(r.monthlyPremium)}</td>
+                <td class="py-2.5 text-right tnum text-slate-500">${fmt.format(r.yearlyPremium)}</td>
+                <td class="py-2.5 text-right tnum">${savingTxt}</td>
+            </tr>`;
+        }).join('');
+        document.getElementById('compareBody').innerHTML = rows;
+        document.getElementById('compareResult').classList.remove('hidden');
+    });
+
+    loadCantons();
+</script>
+</body>
+</html>
